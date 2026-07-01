@@ -114,6 +114,16 @@ function createGame(root) {
       : "这里暂时没有合法数字，请检查周围冲突。";
   }
 
+  function updateSelectionStyles() {
+    board.querySelectorAll(".cell").forEach((cell) => {
+      const isSelected =
+        selectedCell &&
+        Number(cell.dataset.row) === selectedCell[0] &&
+        Number(cell.dataset.col) === selectedCell[1];
+      cell.classList.toggle("selected", Boolean(isSelected));
+    });
+  }
+
   function render() {
     board.innerHTML = "";
     const conflictKeys = new Set(findConflicts(grid).map(([row, col]) => `${row},${col}`));
@@ -146,7 +156,7 @@ function createGame(root) {
 
         cell.addEventListener("focus", () => {
           selectedCell = [row, col];
-          render();
+          updateSelectionStyles();
           updateHint();
         });
 
