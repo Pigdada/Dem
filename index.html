@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>静态预览页面</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Arial, "Microsoft YaHei", sans-serif;
+        background: #f4f7fb;
+        color: #172033;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(720px, 100%);
+        padding: 48px;
+        border-radius: 24px;
+        background: #ffffff;
+        box-shadow: 0 24px 70px rgba(23, 32, 51, 0.14);
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: clamp(32px, 7vw, 56px);
+        line-height: 1.05;
+      }
+
+      p {
+        margin: 0 auto;
+        max-width: 520px;
+        color: #5d6b82;
+        font-size: 18px;
+        line-height: 1.7;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 24px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: #e9f2ff;
+        color: #1769d2;
+        font-weight: 700;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #23c55e;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          background: #101827;
+          color: #f8fafc;
+        }
+
+        main {
+          background: #172033;
+          box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+        }
+
+        p {
+          color: #b8c3d6;
+        }
+
+        .badge {
+          background: rgba(45, 123, 246, 0.18);
+          color: #8ab4ff;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="badge"><span class="dot"></span>静态页面已就绪</div>
+      <h1>Hello, Dem</h1>
+      <p>这是一个可以直接静态运行的页面，当前仓库无需安装依赖即可通过 HTTP 服务预览。</p>
+    </main>
+  </body>
+</html>
