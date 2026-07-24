@@ -446,6 +446,16 @@
       <div class="col-in">
         <fieldset class="fs-rules">
           <legend>规则</legend>
+          <div>
+            <label for="upstreamUrl">上游 API URL（可配置）</label>
+            <input type="text" id="upstreamUrl" autocomplete="off"
+              value="http://43.198.204.42:9527/irule/openapi/rule/execute/system" />
+            <p class="hint">浏览器直连常被 CORS 拦截。默认经本页同源代理 <code>/api/rule/execute</code> 转发（需用 <code>python server.py</code> 启动）。</p>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--text);cursor:pointer;" title="经同源代理转发以绕过 CORS">
+            <input type="checkbox" id="useProxy" checked aria-label="使用同源代理绕过 CORS" style="width:auto;margin:0;" />
+            <span>使用同源代理（推荐，修复跨域）</span>
+          </label>
           <div class="row row-2">
             <div>
               <label for="version">version</label>
@@ -510,9 +520,10 @@
 (function () {
   "use strict";
 
-  /** 与 query.testCase 一致，除 version / assetPath 外均内置（改部署时只改这里） */
+  /** 与 query.testCase 一致；上游 URL 可在页面配置，请求默认走同源代理绕过 CORS */
   var BUILTIN = {
-    apiUrl: "http://43.198.204.42:9527/irule/openapi/rule/execute/system",
+    upstreamUrl: "http://43.198.204.42:9527/irule/openapi/rule/execute/system",
+    proxyPath: "/api/rule/execute",
     space: "webankHLB",
     project: "riskEngine",
     applicationIds: ["cdd10059979543faa3d29182968c3473"]
@@ -536,6 +547,8 @@
       v: 1,
       version: el("version") ? el("version").value : "",
       assetPath: el("assetPath") ? el("assetPath").value : "",
+      upstreamUrl: el("upstreamUrl") ? el("upstreamUrl").value : "",
+      useProxy: el("useProxy") ? !!el("useProxy").checked : true,
       theme: document.documentElement.dataset.theme === "light" ? "light" : "dark",
       jsonCompactRoot: jsonCompactRoot,
       baseJson: el("baseJson") ? el("baseJson").value : "",
@@ -556,6 +569,17 @@
     if (!st || typeof st !== "object") return;
     if (el("version") && st.version != null) el("version").value = String(st.version);
     if (el("assetPath") && st.assetPath != null) el("assetPath").value = String(st.assetPath);
+    if (el("upstreamUrl")) {
+      if (st.upstreamUrl != null && String(st.upstreamUrl).length) {
+        el("upstreamUrl").value = String(st.upstreamUrl);
+      } else if (st.apiUrl != null && String(st.apiUrl).length) {
+        // 兼容旧 localStorage 字段 apiUrl
+        el("upstreamUrl").value = String(st.apiUrl);
+      }
+    }
+    if (el("useProxy") && typeof st.useProxy === "boolean") {
+      el("useProxy").checked = st.useProxy;
+    }
     if (el("baseJson") && st.baseJson != null) el("baseJson").value = String(st.baseJson);
     if (el("caseJson") && st.caseJson != null) el("caseJson").value = String(st.caseJson);
     if (st.theme === "light" || st.theme === "dark") {
@@ -606,12 +630,28 @@
   }
 
   function wireAutoPersistFields() {
-    ["version", "assetPath", "baseJson", "caseJson"].forEach(function (id) {
+    ["version", "assetPath", "upstreamUrl", "baseJson", "caseJson"].forEach(function (id) {
       var n = el(id);
       if (!n) return;
       n.addEventListener("change", persistState);
       n.addEventListener("blur", persistState);
     });
+    var proxyCb = el("useProxy");
+    if (proxyCb) proxyCb.addEventListener("change", persistState);
+  }
+
+  function resolveRequestUrlAndHeaders() {
+    var upstream = (el("upstreamUrl") && el("upstreamUrl").value
+      ? el("upstreamUrl").value
+      : BUILTIN.upstreamUrl
+    ).trim();
+    var useProxy = el("useProxy") ? !!el("useProxy").checked : true;
+    var headers = { "Content-Type": "application/json" };
+    if (useProxy) {
+      headers["X-Upstream-Url"] = upstream;
+      return { url: BUILTIN.proxyPath, headers: headers, upstream: upstream, useProxy: true };
+    }
+    return { url: upstream, headers: headers, upstream: upstream, useProxy: false };
   }
 
   function initThemeToggle() {
@@ -908,12 +948,15 @@
     lastVariableList = null;
     updateJsonViewModeButton();
 
-    var url = BUILTIN.apiUrl;
+    var reqMeta = resolveRequestUrlAndHeaders();
     var version = el("version").value.trim();
     var assetPath = el("assetPath").value.trim();
 
     var baseObj, caseObj;
     try {
+      if (!reqMeta.upstream) {
+        throw new Error("请填写上游 API URL");
+      }
       baseObj = parseJson(el("baseJson").value, "基准");
       var caseRaw = (el("caseJson") && el("caseJson").value ? el("caseJson").value : "").trim();
       if (!caseRaw) {
@@ -948,9 +991,9 @@
 
     btn.disabled = true;
 
-    fetch(url, {
+    fetch(reqMeta.url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: reqMeta.headers,
       body: JSON.stringify(body)
     })
       .then(function (res) {
@@ -968,6 +1011,14 @@
         var j = pack.json;
 
         if (!j) {
+          var hint = "";
+          if (reqMeta.useProxy && (pack.status === 404 || pack.status === 0)) {
+            hint =
+              "\n提示：代理不可用。请在仓库目录运行 python server.py 后通过该服务访问本页（不要用纯静态托管/htmlpreview 直连上游）。";
+          } else if (!reqMeta.useProxy) {
+            hint =
+              "\n提示：直连上游易被浏览器 CORS 拦截。请勾选「使用同源代理」并用 python server.py 打开页面。";
+          }
           errLine.innerHTML =
             '<div class="err-box">响应非 JSON。HTTP ' +
             pack.status +
@@ -975,6 +1026,15 @@
             "\n" +
             escapeHtml((pack.text || "").slice(0, 2000)) +
             (pack.text && pack.text.length > 2000 ? "\n…(截断)" : "") +
+            escapeHtml(hint) +
+            "</div>";
+          return;
+        }
+
+        if (j.proxyError) {
+          errLine.innerHTML =
+            '<div class="err-box">' +
+            escapeHtml("代理错误: " + (j.message || JSON.stringify(j))) +
             "</div>";
           return;
         }
@@ -1030,8 +1090,18 @@
         }
       })
       .catch(function (e) {
+        var extra = "";
+        if (reqMeta.useProxy) {
+          extra =
+            "\n若为 Failed to fetch：请确认已运行 python server.py，并用该服务地址打开页面。";
+        } else {
+          extra =
+            "\n若为 Failed to fetch：多为 CORS/混合内容。请勾选「使用同源代理」并通过 python server.py 访问。";
+        }
         errLine.innerHTML =
-          '<div class="err-box">' + escapeHtml("请求失败: " + e.message) + "</div>";
+          '<div class="err-box">' +
+          escapeHtml("请求失败: " + e.message + extra) +
+          "</div>";
       })
       .finally(function () {
         btn.disabled = false;
