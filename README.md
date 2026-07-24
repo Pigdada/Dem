@@ -2,32 +2,28 @@
 
 案例单测静态页（规则执行单测）。
 
-## 在线访问
+## 现在就能打开（推荐）
 
-合并到 `main` 并启用 GitHub Pages（Settings → Pages → Source 选 **GitHub Actions**）后：
+仓库尚未在 GitHub Settings 中开启 Pages 时，`https://pigdada.github.io/Dem/` 会一直是 **404**。可用下面方式立刻在浏览器里打开页面：
 
-- 站点首页：https://pigdada.github.io/Dem/
-- 同内容备用路径：https://pigdada.github.io/Dem/case_single_test.html
+**HTML Preview（渲染 GitHub 上的 HTML）：**
 
-首次启用后，等待 Actions 中 **Deploy GitHub Pages** 工作流成功即可。
+https://htmlpreview.github.io/?https://github.com/Pigdada/Dem/blob/cursor/bc-2d51885b-9935-4d3e-a3f3-45a05674f67b-113f/index.html
 
-### 无需 Pages 时的即时预览（jsDelivr）
+（分支合并后，把 URL 里的分支名改成 `main` 即可。）
 
-推送到本仓库任意分支后，可用（将 `BRANCH` 换成实际分支名）：
+## GitHub Pages 正式地址
 
-```text
-https://cdn.jsdelivr.net/gh/Pigdada/Dem@BRANCH/index.html
-```
+合并到 `main`，并在仓库 **Settings → Pages → Source** 选择 **GitHub Actions** 后，访问：
 
-当前功能分支示例：
+- https://pigdada.github.io/Dem/
+- https://pigdada.github.io/Dem/case_single_test.html
 
-```text
-https://cdn.jsdelivr.net/gh/Pigdada/Dem@cursor/bc-2d51885b-9935-4d3e-a3f3-45a05674f67b-113f/index.html
-```
+启用后等待 Actions 里 **Deploy GitHub Pages** 成功。本仓库已包含部署工作流：`.github/workflows/deploy-pages.yml`。
 
 ## 本地打开
 
-用浏览器直接打开 `index.html` 或 `case_single_test.html` 即可（二者内容相同）。
+用浏览器直接打开 `index.html` 或 `case_single_test.html`（二者内容相同）。
 
 ## 说明
 
