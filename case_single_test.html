@@ -186,9 +186,14 @@
       flex-shrink: 0;
       margin: 0 0 10px;
     }
-    #runBtn {
+    .run-bar {
       flex-shrink: 0;
       margin: 0 0 10px;
+    }
+    .run-bar #runBtn {
+      margin: 0;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .fs-input {
       flex: 1;
@@ -423,6 +428,83 @@
       margin-bottom: 12px;
       font-size: 0.85rem;
     }
+
+    /* 手机：可滚动 + 底部固定「执行单测」，避免按钮被挤出视口无法点击 */
+    @media (max-width: 767px) {
+      body {
+        height: auto;
+        max-height: none;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-bottom: calc(76px + env(safe-area-inset-bottom));
+      }
+      form#f,
+      .main-split {
+        flex: none;
+        min-height: auto;
+      }
+      .main-split {
+        grid-template-rows: auto;
+        align-items: start;
+      }
+      .col-in,
+      .col-out {
+        min-height: auto;
+      }
+      .fs-rules .hint {
+        display: none;
+      }
+      .fs-input {
+        flex: none;
+        overflow: visible;
+        min-height: auto;
+        margin-bottom: 12px;
+      }
+      .fs-input .panel-scroll {
+        flex: none;
+        height: 132px;
+        min-height: 132px;
+      }
+      .fs-input .panel-scroll textarea {
+        min-height: 132px;
+        font-size: 16px;
+      }
+      .col-out .fs-result {
+        flex: none;
+        min-height: 240px;
+        overflow: visible;
+      }
+      .col-out .out-wrap {
+        min-height: 200px;
+        max-height: 45vh;
+      }
+      .run-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+        margin: 0;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+        background: var(--bg);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.28);
+      }
+      .run-bar #runBtn {
+        min-height: 48px;
+        font-size: 17px;
+        border-radius: 12px;
+      }
+      h1 { font-size: 1.05rem; margin-bottom: 2px; }
+      .page-head { margin-bottom: 8px; }
+      fieldset { padding: 10px; margin-bottom: 10px; }
+      input[type="text"],
+      select {
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -469,7 +551,9 @@
           </div>
         </fieldset>
 
-        <button type="button" id="runBtn">执行单测</button>
+        <div class="run-bar">
+          <button type="button" id="runBtn">执行单测</button>
+        </div>
 
         <fieldset class="fs-input">
           <legend>入参</legend>
