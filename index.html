@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>案例单测 · 规则执行</title>
+  <script>
+(function () {
+  try {
+    var raw = localStorage.getItem("caseSingleTestState_v1");
+    if (raw) {
+      var st = JSON.parse(raw);
+      if (st.theme === "light" || st.theme === "dark") {
+        document.documentElement.dataset.theme = st.theme;
+        return;
+      }
+    }
+  } catch (e) {}
+  try {
+    var s = localStorage.getItem("caseSingleTheme");
+    if (s === "light" || s === "dark") document.documentElement.dataset.theme = s;
+    else document.documentElement.dataset.theme = "dark";
+  } catch (e2) {
+    document.documentElement.dataset.theme = "dark";
+  }
+})();
+  </script>
+  <style>
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --surface: #0d1117;
+      --accent: #3d8bfd;
+      --err: #f85149;
+      --jl-k: #79c0ff;
+      --jl-s: #a5d6ff;
+      --jl-n: #d2a8ff;
+      --jl-b: #ff9d4d;
+      --jl-null: #8b9cb3;
+      --jl-p: #6e7681;
+      --err-bg: rgba(248, 81, 73, 0.1);
+      --thumb: #e6edf3;
+    }
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f0f3f8;
+      --panel: #ffffff;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #59636e;
+      --surface: #f6f8fa;
+      --accent: #0969da;
+      --err: #cf222e;
+      --jl-k: #0550ae;
+      --jl-s: #0a3069;
+      --jl-n: #8250df;
+      --jl-b: #bc4c00;
+      --jl-null: #59636e;
+      --jl-p: #656d76;
+      --err-bg: rgba(207, 34, 46, 0.1);
+      --thumb: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.5;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      padding: 12px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+    }
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+      padding-right: 0;
+    }
+    .page-head-main {
+      min-width: 0;
+      flex: 1;
+    }
+    .head-switches {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 12px 14px;
+      padding-top: 2px;
+    }
+    .theme-switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .theme-switch input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .theme-track {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--border);
+      transition: background 0.2s;
+    }
+    .theme-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--thumb);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      transition: transform 0.2s, background 0.2s;
+    }
+    html[data-theme="light"] .theme-thumb {
+      transform: translateX(20px);
+    }
+    html[data-theme="light"] .theme-track {
+      background: var(--accent);
+    }
+    .theme-switch:focus-within .theme-track {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 0 0 4px;
+      flex-shrink: 0;
+    }
+    .sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 12px; flex-shrink: 0; }
+    form#f {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .main-split {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      gap: 12px;
+      align-items: stretch;
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+    @media (min-width: 768px) {
+      .main-split {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr;
+      }
+    }
+    .col-in,
+    .col-out {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .fs-rules {
+      flex-shrink: 0;
+      margin: 0 0 10px;
+    }
+    #runBtn {
+      flex-shrink: 0;
+      margin: 0 0 10px;
+    }
+    .fs-input {
+      flex: 1;
+      min-height: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .fs-input .hint { margin: 0; }
+    .fs-input label { margin-bottom: 0; }
+    .fs-input .panel-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .fs-input .panel-scroll textarea {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      display: block;
+      width: 100%;
+      margin: 0;
+      border: none;
+      border-radius: 0;
+      resize: none;
+      box-sizing: border-box;
+    }
+    .col-out .fs-result {
+      flex: 1;
+      min-height: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .result-toolbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .result-toolbar-actions {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .result-toolbar .btn-ghost {
+      width: auto;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .result-toolbar .btn-ghost:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .result-toolbar .btn-ghost:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    #jsonViewModeBtn[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: var(--panel);
+      color: var(--accent);
+    }
+    .col-out #errLine {
+      flex-shrink: 0;
+    }
+    .col-out .out-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+    #traceIdLine {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-family: ui-monospace, Consolas, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 2px 0;
+    }
+    #traceIdLine:empty {
+      display: none;
+    }
+    fieldset {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      margin: 0 0 12px;
+      padding: 12px;
+    }
+    legend { padding: 0 6px; color: var(--muted); font-size: 0.85rem; }
+    label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 0.8rem; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    textarea { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+    .case-json-wrap {
+      overflow-x: auto;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    input.case-json-line {
+      display: block;
+      width: 100%;
+      min-width: min(100%, 520px);
+      border: none;
+      border-radius: 8px;
+      margin: 0;
+      padding: 10px 12px;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 12px;
+      white-space: nowrap;
+      background: transparent;
+      color: var(--text);
+    }
+    .case-json-wrap input.case-json-line { margin-bottom: 0; }
+    .input-json-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .input-json-head label {
+      margin-bottom: 0;
+      flex: 1;
+      min-width: 0;
+    }
+    .fs-input .btn-ghost {
+      appearance: none;
+      flex-shrink: 0;
+      width: auto;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .fs-input .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .row { display: grid; gap: 10px; }
+    @media (min-width: 640px) {
+      .row-2 { grid-template-columns: 1fr 1fr; }
+    }
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: -6px;
+      margin-bottom: 10px;
+    }
+    pre.out {
+      margin: 0;
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      font-size: 11px;
+      line-height: 1.45;
+      font-family: ui-monospace, Consolas, monospace;
+      overflow: visible;
+    }
+    pre.out .jl-k { color: var(--jl-k); }
+    pre.out .jl-s { color: var(--jl-s); }
+    pre.out .jl-n { color: var(--jl-n); }
+    pre.out .jl-b { color: var(--jl-b); }
+    pre.out .jl-null { color: var(--jl-null); font-style: italic; }
+    pre.out .jl-p { color: var(--jl-p); }
+    .sub code {
+      font-size: 0.85em;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .err-box {
+      border-left: 3px solid var(--err);
+      padding: 8px 12px;
+      background: var(--err-bg);
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="page-head">
+    <div class="page-head-main">
+      <h1>案例单测</h1>
+      <!-- <p class="sub">请求体与 <code>common/query.py</code> 中 <code>testCase</code> 一致。openDBug 固定为 false。此处可改 version 与 assetPath。跨域需服务端放行或经代理。</p> -->
+    </div>
+    <div class="head-switches">
+      <label class="theme-switch" title="夜间 / 白天">
+        <span>夜间</span>
+        <span class="theme-track" aria-hidden="true"><span class="theme-thumb"></span></span>
+        <span>白天</span>
+        <input type="checkbox" id="themeLight" aria-label="切换到白天主题（关闭为夜间）" />
+      </label>
+    </div>
+  </header>
+
+  <form id="f" onsubmit="return false;">
+    <div class="main-split">
+      <div class="col-in">
+        <fieldset class="fs-rules">
+          <legend>规则</legend>
+          <div class="row row-2">
+            <div>
+              <label for="version">version</label>
+              <input type="text" id="version" value="测试" autocomplete="off" />
+            </div>
+            <div>
+              <label for="assetPath">assetPath</label>
+              <input type="text" id="assetPath" autocomplete="off"
+                value="/flow/main flow.flow" />
+            </div>
+          </div>
+        </fieldset>
+
+        <button type="button" id="runBtn">执行单测</button>
+
+        <fieldset class="fs-input">
+          <legend>入参</legend>
+          <!-- <p class="hint">param 仅来自基准 JSON（空则按 <code>{}</code>）。案例入参已注释关闭，恢复时见本页 HTML / JS 注释。</p> -->
+          <div class="input-json-head">
+            <label for="baseJson">基准 JSON（可空）</label>
+            <button type="button" id="formatBaseJsonBtn" class="btn-ghost" spellcheck="false" title="解析、按字段名排序并缩进排版（空内容时写入空对象）">
+              格式化 JSON
+            </button>
+          </div>
+          <div class="panel-scroll">
+            <textarea id="baseJson" spellcheck="false" autocomplete="off" placeholder="{}"></textarea>
+          </div>
+          <label for="caseJson">案例入参（单行 JSON 对象）</label>
+          <div class="case-json-wrap">
+            <input type="text" id="caseJson" class="case-json-line" spellcheck="false" autocomplete="off"
+              placeholder="{}" title="留空视为 {}，与基准 JSON 合并后作为 param" />
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="col-out">
+        <fieldset class="fs-result">
+          <legend>结果</legend>
+          <div class="result-toolbar">
+            <div id="traceIdLine" aria-live="polite"></div>
+            <div class="result-toolbar-actions">
+              <button type="button" id="copyResultBtn" class="btn-ghost" disabled title="复制当前结果 JSON（与画面一致，含精简模式）">复制</button>
+              <button type="button" id="jsonViewModeBtn" class="btn-ghost" disabled aria-pressed="true" title="最外层：空字符串、空数组、-999（数值或字符串）在「精简」模式下不展示">
+                显示全部
+              </button>
+            </div>
+          </div>
+          <div id="errLine"></div>
+          <div class="out-wrap">
+            <pre id="out" class="out json-hi"></pre>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+  </form>
+
+  <!--
+    状态持久化：仅用浏览器 localStorage（键 caseSingleTestState_v1）。
+    因 CORS/部署限制，已关闭读取、写入同目录 case_single_test.state.json 的逻辑。
+  -->
+  <script>
+(function () {
+  "use strict";
+
+  /** 与 query.testCase 一致，除 version / assetPath 外均内置（改部署时只改这里） */
+  var BUILTIN = {
+    apiUrl: "http://43.198.204.42:9527/irule/openapi/rule/execute/system",
+    space: "webankHLB",
+    project: "riskEngine",
+    applicationIds: ["cdd10059979543faa3d29182968c3473"]
+  };
+
+  var STATE_KEY = "caseSingleTestState_v1";
+
+  var lastVariableList = null;
+  var jsonCompactRoot = true;
+
+  function el(id) { return document.getElementById(id); }
+
+  function buildStateSnapshot() {
+    var lastTraceId = "";
+    var traceLine = el("traceIdLine");
+    if (traceLine && traceLine.textContent) {
+      var m = traceLine.textContent.match(/^traceId:\s*(.+)$/);
+      if (m) lastTraceId = m[1].trim();
+    }
+    return {
+      v: 1,
+      version: el("version") ? el("version").value : "",
+      assetPath: el("assetPath") ? el("assetPath").value : "",
+      theme: document.documentElement.dataset.theme === "light" ? "light" : "dark",
+      jsonCompactRoot: jsonCompactRoot,
+      baseJson: el("baseJson") ? el("baseJson").value : "",
+      caseJson: el("caseJson") ? el("caseJson").value : "",
+      lastVariableList: lastVariableList,
+      lastTraceId: lastTraceId
+    };
+  }
+
+  function persistState() {
+    try {
+      var st = buildStateSnapshot();
+      localStorage.setItem(STATE_KEY, JSON.stringify(st));
+    } catch (e) {}
+  }
+
+  function applyStateObject(st) {
+    if (!st || typeof st !== "object") return;
+    if (el("version") && st.version != null) el("version").value = String(st.version);
+    if (el("assetPath") && st.assetPath != null) el("assetPath").value = String(st.assetPath);
+    if (el("baseJson") && st.baseJson != null) el("baseJson").value = String(st.baseJson);
+    if (el("caseJson") && st.caseJson != null) el("caseJson").value = String(st.caseJson);
+    if (st.theme === "light" || st.theme === "dark") {
+      document.documentElement.dataset.theme = st.theme;
+      var tl = el("themeLight");
+      if (tl) tl.checked = st.theme === "light";
+    }
+    if (typeof st.jsonCompactRoot === "boolean") jsonCompactRoot = st.jsonCompactRoot;
+    if ("lastVariableList" in st) lastVariableList = st.lastVariableList;
+    if (st.lastTraceId != null && String(st.lastTraceId).length > 0) {
+      setTraceIdLine({ traceId: st.lastTraceId });
+    } else {
+      var line = el("traceIdLine");
+      if (line) {
+        line.textContent = "";
+        line.removeAttribute("title");
+      }
+    }
+    updateJsonViewModeButton();
+    renderVariableListOut();
+  }
+
+  function loadPersistedState() {
+    try {
+      var raw = localStorage.getItem(STATE_KEY);
+      if (raw) {
+        applyStateObject(JSON.parse(raw));
+        return;
+      }
+    } catch (e) {}
+    var hadLegacy = false;
+    try {
+      var theme = localStorage.getItem("caseSingleTheme");
+      if (theme != null) {
+        hadLegacy = true;
+        applyStateObject({
+          v: 1,
+          theme: theme === "light" || theme === "dark" ? theme : "dark",
+          jsonCompactRoot: true
+        });
+      }
+    } catch (e2) {}
+    if (hadLegacy) {
+      try {
+        persistState();
+      } catch (e3) {}
+    }
+  }
+
+  function wireAutoPersistFields() {
+    ["version", "assetPath", "baseJson", "caseJson"].forEach(function (id) {
+      var n = el(id);
+      if (!n) return;
+      n.addEventListener("change", persistState);
+      n.addEventListener("blur", persistState);
+    });
+  }
+
+  function initThemeToggle() {
+    var root = document.documentElement;
+    var cb = el("themeLight");
+    if (!cb) return;
+    cb.checked = root.dataset.theme === "light";
+    cb.addEventListener("change", function () {
+      var v = cb.checked ? "light" : "dark";
+      root.dataset.theme = v;
+      persistState();
+    });
+  }
+
+  function parseJson(text, label) {
+    var t = (text || "").trim();
+    if (!t) return {};
+    try {
+      return JSON.parse(t);
+    } catch (e) {
+      throw new Error(label + " JSON 解析失败: " + e.message);
+    }
+  }
+
+  function mergeDict(base, input) {
+    var out = {};
+    var k;
+    for (k in base) {
+      if (Object.prototype.hasOwnProperty.call(base, k)) out[k] = base[k];
+    }
+    for (k in input) {
+      if (Object.prototype.hasOwnProperty.call(input, k)) out[k] = input[k];
+    }
+    return out;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  /** 递归按字段名排序（便于 diff / 阅读）；仅影响格式化输出 */
+  function jsonDeepSortKeys(val) {
+    if (val === null || typeof val !== "object") return val;
+    if (Array.isArray(val)) {
+      return val.map(function (x) {
+        return jsonDeepSortKeys(x);
+      });
+    }
+    var keys = Object.keys(val).sort();
+    var out = {};
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      out[k] = jsonDeepSortKeys(val[k]);
+    }
+    return out;
+  }
+
+  function formatBaseJsonField() {
+    var ta = el("baseJson");
+    var errLine = el("errLine");
+    if (!ta) return;
+    var trimmed = (ta.value || "").trim();
+    if (!trimmed) {
+      ta.value = JSON.stringify(jsonDeepSortKeys({}), null, 2);
+      if (errLine) errLine.innerHTML = "";
+      persistState();
+      return;
+    }
+    try {
+      var obj = JSON.parse(trimmed);
+      ta.value = JSON.stringify(jsonDeepSortKeys(obj), null, 2);
+      if (errLine) errLine.innerHTML = "";
+      persistState();
+    } catch (e) {
+      if (errLine) {
+        errLine.innerHTML =
+          '<div class="err-box">' +
+          escapeHtml("基准 JSON 格式化失败: " + (e && e.message ? e.message : e)) +
+          "</div>";
+      }
+    }
+  }
+
+  function jsonHighlightHtml(val, depth) {
+    depth = depth || 0;
+    var step = 2;
+    var pad = new Array(depth * step + 1).join(" ");
+    var padIn = new Array((depth + 1) * step + 1).join(" ");
+
+    if (val === null) {
+      return '<span class="jl-null">null</span>';
+    }
+    var t = typeof val;
+    if (t === "boolean") {
+      return '<span class="jl-b">' + (val ? "true" : "false") + "</span>";
+    }
+    if (t === "number") {
+      return '<span class="jl-n">' + escapeHtml(String(val)) + "</span>";
+    }
+    if (t === "string") {
+      return '<span class="jl-s">"' + escapeHtml(val) + '"</span>';
+    }
+    if (Array.isArray(val)) {
+      if (val.length === 0) {
+        return '<span class="jl-p">[]</span>';
+      }
+      var a = ['<span class="jl-p">[</span>\n'];
+      for (var i = 0; i < val.length; i++) {
+        a.push(padIn + jsonHighlightHtml(val[i], depth + 1));
+        if (i < val.length - 1) {
+          a.push('<span class="jl-p">,</span>');
+        }
+        a.push("\n");
+      }
+      a.push(pad + '<span class="jl-p">]</span>');
+      return a.join("");
+    }
+    if (t === "object") {
+      var keys = Object.keys(val);
+      if (keys.length === 0) {
+        return '<span class="jl-p">{}</span>';
+      }
+      var o = ['<span class="jl-p">{</span>\n'];
+      for (var j = 0; j < keys.length; j++) {
+        var key = keys[j];
+        o.push(
+          padIn +
+            '<span class="jl-k">"' +
+            escapeHtml(key) +
+            '"</span> <span class="jl-p">:</span> ' +
+            jsonHighlightHtml(val[key], depth + 1)
+        );
+        if (j < keys.length - 1) {
+          o.push('<span class="jl-p">,</span>');
+        }
+        o.push("\n");
+      }
+      o.push(pad + '<span class="jl-p">}</span>');
+      return o.join("");
+    }
+    return '<span class="jl-s">"' + escapeHtml(String(val)) + '"</span>';
+  }
+
+  function isRootOmittedValue(v) {
+    if (v === "") return true;
+    if (Array.isArray(v) && v.length === 0) return true;
+    if (v === -999) return true;
+    if (v === "-999") return true;
+    return false;
+  }
+
+  function filterRootHideNoise(root) {
+    if (root === null || root === undefined) return root;
+    if (Array.isArray(root)) {
+      return root.filter(function (x) {
+        return !isRootOmittedValue(x);
+      });
+    }
+    if (typeof root === "object") {
+      var o = {};
+      Object.keys(root).forEach(function (k) {
+        if (!isRootOmittedValue(root[k])) o[k] = root[k];
+      });
+      return o;
+    }
+    return root;
+  }
+
+  function getDisplayedVariableList() {
+    if (lastVariableList === null) return null;
+    return jsonCompactRoot ? filterRootHideNoise(lastVariableList) : lastVariableList;
+  }
+
+  function updateJsonViewModeButton() {
+    var b = el("jsonViewModeBtn");
+    var c = el("copyResultBtn");
+    var disabled = lastVariableList === null;
+    if (b) {
+      b.disabled = disabled;
+      b.setAttribute("aria-pressed", jsonCompactRoot ? "true" : "false");
+      b.textContent = jsonCompactRoot ? "显示全部" : "精简显示";
+    }
+    if (c) c.disabled = disabled;
+  }
+
+  function copyTextFallback(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      return document.execCommand("copy");
+    } finally {
+      document.body.removeChild(ta);
+    }
+  }
+
+  function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        if (copyTextFallback(text)) resolve();
+        else reject(new Error("execCommand copy failed"));
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  function renderVariableListOut() {
+    var out = el("out");
+    if (!out) return;
+    if (lastVariableList === null) {
+      out.textContent = "";
+      return;
+    }
+    var v = getDisplayedVariableList();
+    out.innerHTML = jsonHighlightHtml(v, 0);
+  }
+
+  function setTraceIdLine(data) {
+    var line = el("traceIdLine");
+    if (!line) return;
+    var tid = data && data.traceId;
+    if (tid !== undefined && tid !== null && String(tid).length > 0) {
+      var s = "traceId: " + String(tid);
+      line.textContent = s;
+      line.title = s;
+    } else {
+      line.textContent = "";
+      line.removeAttribute("title");
+    }
+  }
+
+  el("copyResultBtn").addEventListener("click", function () {
+    var v = getDisplayedVariableList();
+    if (v === null) return;
+    var copyBtn = el("copyResultBtn");
+    var label = "复制";
+    var text;
+    try {
+      text = JSON.stringify(v, null, 2);
+    } catch (eStr) {
+      copyBtn.textContent = "失败";
+      setTimeout(function () {
+        copyBtn.textContent = label;
+      }, 1200);
+      return;
+    }
+    copyTextToClipboard(text).then(
+      function () {
+        copyBtn.textContent = "已复制";
+        setTimeout(function () {
+          copyBtn.textContent = label;
+        }, 1200);
+      },
+      function () {
+        copyBtn.textContent = "失败";
+        setTimeout(function () {
+          copyBtn.textContent = label;
+        }, 1200);
+      }
+    );
+  });
+
+  el("jsonViewModeBtn").addEventListener("click", function () {
+    if (lastVariableList === null) return;
+    jsonCompactRoot = !jsonCompactRoot;
+    updateJsonViewModeButton();
+    renderVariableListOut();
+    persistState();
+  });
+
+  el("runBtn").addEventListener("click", function () {
+    var btn = el("runBtn");
+    var out = el("out");
+    var errLine = el("errLine");
+    var traceIdLine = el("traceIdLine");
+    errLine.innerHTML = "";
+    out.textContent = "";
+    if (traceIdLine) {
+      traceIdLine.textContent = "";
+      traceIdLine.removeAttribute("title");
+    }
+    lastVariableList = null;
+    updateJsonViewModeButton();
+
+    var url = BUILTIN.apiUrl;
+    var version = el("version").value.trim();
+    var assetPath = el("assetPath").value.trim();
+
+    var baseObj, caseObj;
+    try {
+      baseObj = parseJson(el("baseJson").value, "基准");
+      var caseRaw = (el("caseJson") && el("caseJson").value ? el("caseJson").value : "").trim();
+      if (!caseRaw) {
+        caseObj = {};
+      } else {
+        try {
+          caseObj = JSON.parse(caseRaw);
+        } catch (pe) {
+          throw new Error("案例入参 JSON 解析失败: " + pe.message);
+        }
+        if (typeof caseObj !== "object" || caseObj === null || Array.isArray(caseObj)) {
+          throw new Error("案例入参必须是 JSON 对象（{}），不能是数组或 null");
+        }
+      }
+    } catch (e) {
+      errLine.innerHTML = '<div class="err-box">' + escapeHtml(e.message) + "</div>";
+      return;
+    }
+
+    var merged = mergeDict(baseObj, caseObj);
+    var paramStr = JSON.stringify(merged);
+
+    var body = {
+      space: BUILTIN.space,
+      project: BUILTIN.project,
+      assetPath: assetPath,
+      applicationIds: BUILTIN.applicationIds,
+      version: version,
+      openDBug: false,
+      param: paramStr
+    };
+
+    btn.disabled = true;
+
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
+      .then(function (res) {
+        return res.text().then(function (text) {
+          var json = null;
+          try {
+            json = text ? JSON.parse(text) : null;
+          } catch (ignore) {
+            json = null;
+          }
+          return { ok: res.ok, status: res.status, text: text, json: json };
+        });
+      })
+      .then(function (pack) {
+        var j = pack.json;
+
+        if (!j) {
+          errLine.innerHTML =
+            '<div class="err-box">响应非 JSON。HTTP ' +
+            pack.status +
+            (pack.ok ? "" : " 失败") +
+            "\n" +
+            escapeHtml((pack.text || "").slice(0, 2000)) +
+            (pack.text && pack.text.length > 2000 ? "\n…(截断)" : "") +
+            "</div>";
+          return;
+        }
+
+        var code = j.code;
+        var data = j.data || {};
+        setTraceIdLine(data);
+
+        if (code !== 200) {
+          var stack = data.stacktraceMsg || "";
+          errLine.innerHTML =
+            '<div class="err-box">' +
+            escapeHtml("接口 code: " + String(code) + (stack ? "\n" + stack : "")) +
+            "</div>";
+          return;
+        }
+
+        var vlRaw = data.VariableList;
+        if (vlRaw === undefined || vlRaw === null) {
+          errLine.innerHTML =
+            '<div class="err-box">' +
+            escapeHtml("业务成功（code 200）但响应 data 中无 VariableList") +
+            "</div>";
+          return;
+        }
+
+        if (typeof vlRaw !== "string") {
+          errLine.innerHTML =
+            '<div class="err-box">' +
+            escapeHtml("VariableList 类型异常，期望 JSON 字符串") +
+            "</div>";
+          return;
+        }
+
+        if (!vlRaw.length) {
+          errLine.innerHTML =
+            '<div class="err-box">' +
+            escapeHtml("VariableList 为空字符串，无法解析") +
+            "</div>";
+          return;
+        }
+
+        try {
+          var vl = JSON.parse(vlRaw);
+          lastVariableList = vl;
+          updateJsonViewModeButton();
+          renderVariableListOut();
+        } catch (e2) {
+          errLine.innerHTML =
+            '<div class="err-box">' +
+            escapeHtml("VariableList JSON 解析失败: " + e2.message) +
+            "</div>";
+        }
+      })
+      .catch(function (e) {
+        errLine.innerHTML =
+          '<div class="err-box">' + escapeHtml("请求失败: " + e.message) + "</div>";
+      })
+      .finally(function () {
+        btn.disabled = false;
+        persistState();
+      });
+  });
+
+  initThemeToggle();
+  wireAutoPersistFields();
+  var formatBaseJsonBtn = el("formatBaseJsonBtn");
+  if (formatBaseJsonBtn) formatBaseJsonBtn.addEventListener("click", formatBaseJsonField);
+  loadPersistedState();
+})();
+  </script>
+</body>
+</html>
